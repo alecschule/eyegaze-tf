@@ -21,12 +21,26 @@ for filename in os.listdir(fileDir):
             data.append(rowArray[:-1])
             labels.append(rowArray[-1])
 
-# fit all columns to range (-1, 1)
-npData = np.array(data)
-absData = np.absolute(npData)
-normalData = npData / absData.max(axis=0)
+# randomize data
+indexes = [i for i in range(len(data))]
+random.shuffle(indexes)
+randomData = []
+randomLabels = []
 
-npLabels = np.array(labels)
+for i in indexes:
+    randomData.append(data[i])
+    randomLabels.append(labels[i])
+
+# fit all columns to range (-1, 1)
+npData = np.array(randomData)
+absData = np.absolute(npData)
+absMax = absData.max(axis=0)
+for i in range(len(absMax)):
+    if absMax[i] == 0:
+        absMax[i] = 1
+normalData = npData / absMax
+
+npLabels = np.array(randomLabels)
 
 # Split annotated frames randomly into test data and evaluation data
 trainingData = []
@@ -40,6 +54,7 @@ for i in range(len(normalData)):
     else:
         testData.append(normalData[i])
         testLabels.append(npLabels[i])
+
 
 # Numpy arrays are necessary for tensorflow
 npTrainingData = np.array(trainingData)
@@ -59,7 +74,7 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 # Fit model to training data
-model.fit(npTrainingData, npTrainingLabels, epochs=5)
+model.fit(npTrainingData, npTrainingLabels, epochs=8)
 # Evaluate model on test frames
 loss, acc = model.evaluate(npTestData, npTestLabels)
 print("Test loss: " , loss)
