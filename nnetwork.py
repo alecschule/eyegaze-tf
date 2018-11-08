@@ -2,14 +2,13 @@ import tensorflow as tf
 import numpy as np
 import os
 import csv
-import random
-
+import random 
+import hmm.MyHmm
 # seed uses system time by default
 random.seed()
 
 fileDir = 'annotated_files'
-testDir = 'testing_files'
-
+testDir = 'testing_files' 
 trainingData = []
 trainingLabels = []
 testData = []
@@ -22,7 +21,7 @@ for filename in os.listdir(fileDir):
         for row in reader:
             rowArray = [float(item) for item in row]
             trainingData.append(rowArray[:-1])
-            trainingLabels.append(rowArray[-1])
+            trainingLabels.append(int(rowArray[-1]))
 
 for filename in os.listdir(testDir):
     with open(testDir + "/" + filename, newline='') as f:
@@ -31,7 +30,7 @@ for filename in os.listdir(testDir):
         for row in reader:
             rowArray = [float(item) for item in row]
             testData.append(rowArray[:-1])
-            testLabels.append(rowArray[-1])
+            testLabels.append(int(rowArray[-1]))
 
 # randomize data
 indexes = [i for i in range(len(trainingData))]
@@ -95,6 +94,7 @@ model.fit(npTrainingData, npTrainingLabels, epochs=5)
 # Evaluate model on test frames
 
 predictions = model.predict(npTestData)
+modelLabels = [] # save our predictions
 lookingSuccess = 0
 lookingFail = 0
 notLookingSuccess = 0
@@ -102,10 +102,11 @@ notLookingFail = 0
 for i in range(len(npTestLabels)):
 # for prediction,label in predictions,npTestLabels:
     prediction = predictions[i]
+    evalPrediction = np.argmax(prediction)
     label = npTestLabels[i]
     if label == 0:
         # not looking
-        if np.argmax(prediction) == 0:
+        if evalPrediction == 0:
             # success
             notLookingSuccess+= 1
         else:
@@ -113,17 +114,42 @@ for i in range(len(npTestLabels)):
             notLookingFail += 1
     else:
         # looking
-        if np.argmax(prediction) == 0:
+        if evalPrediction == 0:
             # fail
             lookingFail += 1
         else:
             # success
             lookingSuccess += 1
+    modelLabels.append(int(evalPrediction))
 
 totalLooking = lookingSuccess+lookingFail
 totalNotLooking = notLookingSuccess+notLookingFail
 print ("Looking frame success: ", lookingSuccess, "/", totalLooking, "| ", lookingSuccess/totalLooking*100, "% accuracy")
 print ("Not looking frame success: ", notLookingSuccess, "/", totalNotLooking, "| ", notLookingSuccess/totalNotLooking*100, "% accuracy")
+
+my_hmm = hmm.MyHmm.hmm(modelLabels, trainingLabels, lookingSuccess/totalLooking, notLookingSuccess/totalNotLooking)
+
+# run test data again and include hmm output
+frameHist = 0 # 7 bits to represent last 7 predictions
+for i in range(6):
+    frameHist << 1
+    frameHist += np.argmax(predictions[i])
+for i in range(6, len(npTestLabels)):
+    frameHist = frameHist << 1
+    evalPrediction = np.argmax(predictions[i])
+    frameHist += evalPrediction
+    print ("Prediction:", evalPrediction)
+    print ("Label:", npTestLabels[i])
+    print ("Frame history:", format((frameHist & 0x7F), '007b'))
+    hmmProb = my_hmm.get_probability(frameHist)
+    if hmmProb is not None:
+        print ("HMM output:", hmmProb)
+        if hmmProb >= 1.0/128:
+            print ("Probably right")
+        else:
+            print ("Probably wrong")
+    print ()
+
 
 # loss, acc = model.evaluate(npTestData, npTestLabels)
 # print("Test loss: " , loss)
