@@ -7,6 +7,8 @@ import hmm.MyHmm
 # seed uses system time by default
 random.seed()
 
+HMM_HIST_LENGTH = 7
+
 fileDir = 'annotated_files'
 testDir = 'testing_files' 
 trainingData = []
@@ -127,7 +129,7 @@ totalNotLooking = notLookingSuccess+notLookingFail
 print ("Looking frame success: ", lookingSuccess, "/", totalLooking, "| ", lookingSuccess/totalLooking*100, "% accuracy")
 print ("Not looking frame success: ", notLookingSuccess, "/", totalNotLooking, "| ", notLookingSuccess/totalNotLooking*100, "% accuracy")
 
-my_hmm = hmm.MyHmm.hmm(modelLabels, trainingLabels, lookingSuccess/totalLooking, notLookingSuccess/totalNotLooking)
+my_hmm = hmm.MyHmm.hmm(HMM_HIST_LENGTH, modelLabels, trainingLabels, lookingSuccess/totalLooking, notLookingSuccess/totalNotLooking)
 
 # run test data again and include hmm output
 frameHist = 0 # 7 bits to represent last 7 predictions
